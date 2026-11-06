@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HydroCalc | Trabajo Mecánico de Bombeo</title>
+    <!-- Fuente minimalista Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Chart.js para graficar la integral -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="background-glow"></div>
+
+    <div class="app-container">
+        <header class="app-header fade-in">
+            <div class="logo-badge">∫ dW</div>
+            <div>
+                <h1>HydroCalc <span class="badge">Simulador Numérico</span></h1>
+                <p>Cálculo de Trabajo Mecánico en Sistemas de Bombeo Hidráulico Subterráneo</p>
+            </div>
+        </header>
+
+        <main class="main-grid">
+            <!-- Panel Izquierdo: Parámetros y Visualización del Tanque -->
+            <section class="panel config-panel slide-up">
+                <h2 class="panel-title">Parámetros del Sistema</h2>
+
+                <div id="alert-box" class="alert-box hidden"></div>
+
+                <form id="calc-form" novalidate>
+                    <!-- Geometría y Método -->
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="geometria">Geometría del Tanque</label>
+                            <select id="geometria">
+                                <option value="cilindro">Cilíndrico Vertical</option>
+                                <option value="cono">Cónico (Vértice Abajo)</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="metodo">Método Numérico</label>
+                            <select id="metodo">
+                                <option value="simpson">Regla de Simpson 1/3</option>
+                                <option value="trapecio">Regla del Trapecio</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Fluido Predefinido o Personalizado -->
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="fluido-preset">Fluido</label>
+                            <select id="fluido-preset">
+                                <option value="1000">Agua Pura (1000 kg/m³)</option>
+                                <option value="850">Diésel / Combustible (850 kg/m³)</option>
+                                <option value="720">Gasolina (720 kg/m³)</option>
+                                <option value="920">Aceite Industrial (920 kg/m³)</option>
+                                <option value="custom">Personalizado...</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label for="densidad">Densidad ρ (kg/m³)</label>
+                            <input type="number" id="densidad" value="1000" step="any" placeholder="Ej. 1000">
+                        </div>
+                    </div>
+
+                    <!-- Dimensiones -->
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="radio">Radio Superior R (m)</label>
+                            <input type="number" id="radio" value="2.5" step="any" placeholder="Ej. 2.5">
+                        </div>
+                        <div class="input-group">
+                            <label for="altura">Altura Total H (m)</label>
+                            <input type="number" id="altura" value="6" step="any" placeholder="Ej. 6.0">
+                        </div>
+                    </div>
+
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label for="nivel">Nivel del Líquido h (m)</label>
+                            <input type="number" id="nivel" value="5" step="any" placeholder="Menor o igual a H">
+                        </div>
+                        <div class="input-group">
+                            <label for="subintervalos">Subintervalos (n)</label>
+                            <input type="number" id="subintervalos" value="10" step="1" placeholder="Par para Simpson">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-primary">
+                        <span>Ejecutar Integración</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </button>
+                </form>
+
+                <!-- Visualizador 2D del Tanque -->
+                <div class="tank-visualizer">
+                    <div class="tank-info">
+                        <span>Esquema de Bombeo</span>
+                        <span id="tank-label" class="mono-text">h = 5.0m / H = 6.0m</span>
+                    </div>
+                    <div class="tank-canvas-wrapper">
+                        <div id="tank-shape" class="tank-cylinder">
+                            <div id="liquid-level" class="liquid" style="height: 83.3%;">
+                                <div class="wave"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel Derecho: Resultados, Gráfica y Tabulación -->
+            <section class="panel results-panel slide-up-delayed">
+                <!-- Tarjetas de Métricas -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <span class="metric-label" id="label-num">Trabajo Numérico (Simpson)</span>
+                        <h3 class="metric-value mono-text" id="res-numerico">0.00 kJ</h3>
+                        <span class="metric-sub" id="res-joules-num">0.00 Joules</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Trabajo Analítico Exacto</span>
+                        <h3 class="metric-value mono-text accent-cyan" id="res-analitico">0.00 kJ</h3>
+                        <span class="metric-sub" id="res-joules-ana">0.00 Joules</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Error Relativo Porcentual</span>
+                        <h3 class="metric-value mono-text accent-emerald" id="res-error">0.000000 %</h3>
+                        <span class="metric-sub">Precisión del método</span>
+                    </div>
+                </div>
+
+                <!-- Gráfica de la Integral -->
+                <div class="chart-container">
+                    <div class="section-header">
+                        <h2>Curva de Trabajo Diferencial <span class="mono-text">dW(y) = ρ·g·A(y)·(H - y)</span></h2>
+                    </div>
+                    <div class="canvas-holder">
+                        <canvas id="workChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tabla de Iteraciones y Persistencia -->
+                <div class="table-section">
+                    <div class="section-header">
+                        <h2>Tabulación de Subintervalos</h2>
+                        <div class="export-actions">
+                            <button id="btn-csv" class="btn-secondary">Exportar .CSV</button>
+                            <button id="btn-txt" class="btn-secondary">Exportar .TXT</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper">
+                        <table id="iter-table">
+                            <thead>
+                                <tr>
+                                    <th>i</th>
+                                    <th>Altura yᵢ (m)</th>
+                                    <th>Radio r(yᵢ)</th>
+                                    <th>Dist. (H - yᵢ)</th>
+                                    <th>f(yᵢ) [N]</th>
+                                    <th>Coef.</th>
+                                    <th>Término</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                <!-- Filas inyectadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
